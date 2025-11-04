@@ -6,6 +6,7 @@ from bitget_client import BitgetClient
 from db_connect import RequestLogServer
 from Order import Order, process_order_request
 import math
+import os
 
 app = Flask(__name__)
 client = BitgetClient()
@@ -92,4 +93,7 @@ def place_order(order: Order):
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
+
