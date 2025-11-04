@@ -1,0 +1,19 @@
+from db_connect import RequestLogDAO
+
+if __name__ == "__main__":
+    dao = RequestLogDAO()
+    try:
+        dao.connect()
+
+        # Inserisci un record
+        new_id = dao.insert_request("POST /place-order", '{"status":"success"}')
+        print(f"✅ Inserito record con ID: {new_id}")
+
+        # Elimina un record
+        deleted = dao.delete_request(new_id)
+        print(f"🗑️ Record eliminati: {deleted}")
+
+    except Exception as e:
+        print(f"❌ Errore: {e}")
+    finally:
+        dao.close()
