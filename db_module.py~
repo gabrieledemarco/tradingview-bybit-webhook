@@ -1,0 +1,179 @@
+import os
+import json
+import mysql.connector
+from mysql.connector import pooling, Error
+from contextlib import contextmanager
+from dotenv import load_dotenv
+from typing import Optional, Any
+
+load_dotenv()
+
+
+class Database:
+    """Gestisce un pool di connessioni MySQL in modo centralizzato."""
+
+    def __init__(self):
+        self.config = {
+            "host": os.getenv("DB_HOST"),
+            "port": int(os.getenv("DB_PORT", 3306)),
+            "user": os.getenv("DB_USER"),
+            "password": os.getenv("DB_PASSWORD"),
+            "database": os.getenv("DB_NAME"),
+            "ssl_disabled": os.getenv("DB_SSL_DISABLED", "False").lower() == "true"
+        }
+
+        # 🔹 Creazione del pool di connessioni
+        self.pool = pooling.MySQLConnectionPool(
+            pool_name="mypool",
+            pool_size=3,
+            **self.config
+        )
+
+    @contextmanager
+    def get_connection(self):
+        """Restituisce una connessione dal pool e la chiude automaticamente."""
+        conn = None
+        try:
+            conn = self.pool.get_connection()
+            yield conn
+        finally:
+            if conn and conn.is_connected():
+                conn.close()
+
+
+db = Database()  # Istanziamo l'oggetto Globale Database
+
+
+class RequestLogDAO:
+    """DAO per la tabella request_log (richieste ricevute dal server)."""
+
+    def insert(self, request_text: Any, response_text: Any, signal_id: Optional[int] = None) -> int:
+        query = """
+            INSERT INTO request_log (request, response, signal_id)
+            VALUES (%s, %s, %s)
+        """
+
+        with db.get_connection() as conn:
+            cursor = conn.cursor()
+            request_json = json.dumps(request_text) if isinstance(request_text, dict) else request_text
+            response_json = json.dumps(response_text) if isinstance(response_text, dict) else response_text
+            cursor.execute(query, (request_json, response_json, signal_id))
+            conn.commit()
+            return cursor.lastrowid
+
+    def update_field(self, id_request: int, field_name: str, new_value: Any) -> int:
+        query = f"UPDATE request_log SET {field_name} = %s WHERE id_request = %s"
+        with db.get_connection() as conn:
+            cursor = conn.cursor()
+            val = json.dumps(new_value) if isinstance(new_value, dict) else new_value
+            cursor.execute(query, (val, id_request))
+            conn.commit()
+            return cursor.rowcount
+
+    def get_last_signal(self):
+        """Restituisce l'ultimo signal_id e request_time dal DB."""
+        query = """
+            SELECT signal_id, request_time 
+            FROM request_log 
+            ORDER BY id_request DESC 
+            LIMIT 1
+        """
+        with db.get_connection() as conn:
+            cursor = conn.cursor(dictionary=True)
+            cursor.execute(query)
+            result = cursor.fetchone()
+            return result
+
+
+class ApiRequestDAO:
+    """DAO per la tabella api_requests (chiamate fatte dal server verso Bitget)."""
+
+    def insert(self, request_text: Any, response_text: Any, signal_id: Optional[int] = None) -> int:
+        # ✅ Normalizza input: assicuriamoci che siano stringhe
+        if isinstance(request_text, (dict, list)):
+            req = request_text
+        else:
+            try:
+                req = json.loads(request_text)
+            except (TypeError, json.JSONDecodeError):
+                req = {}
+
+        if isinstance(response_text, (dict, list)):
+            res = response_text
+        else:
+            try:
+                res = json.loads(response_text)
+            except (TypeError, json.JSONDecodeError):
+                res = {}
+
+        # 🔧 Estrai i campi previsti, con default stringa vuota
+        values = (
+            req.get("endpoint", ""),
+            json.dumps(req.get("body", ""), ensure_ascii=False),
+            json.dumps(req.get("headers", ""), ensure_ascii=False),
+            json.dumps(req.get("payload", ""), ensure_ascii=False),
+            res.get("response_status", ""),
+            json.dumps(res.get("response_body", ""), ensure_ascii=False),
+            json.dumps(res.get("response_json", ""), ensure_ascii=False),
+            json.dumps(res.get("response_data", ""), ensure_ascii=False),
+            res.get("response_code", ""),
+            res.get("response_msg", ""),
+            signal_id
+        )
+
+        query = """
+            INSERT INTO api_requests (
+                endpoint, body, headers, payload,
+                response_status, response_body, response_json,
+                response_data, response_code, response_msg,
+                signal_id
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """
+
+        with db.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(query, values)
+            conn.commit()
+            return cursor.lastrowid
+
+
+class DatabaseService:
+    """Gestisce in modo centralizzato l’inserimento e aggiornamento nei DAO."""
+
+    def __init__(self):
+        self.request_log_dao = RequestLogDAO()
+        self.api_request_dao = ApiRequestDAO()
+
+    def log_incoming_request(self, request_text, response_text, signal_id=None):
+        try:
+            inserted_id = self.request_log_dao.insert(request_text, response_text, signal_id)
+            print(f"✅ Inserita richiesta in request_log (id={inserted_id}, signal_id={signal_id})")
+            return inserted_id
+        except Error as e:
+            print(f"❌ Errore DB durante l’inserimento in request_log: {e}")
+            return None
+
+    def update_request_response(self, id_request: int, response_data: Any):
+        """Aggiorna la colonna 'response' nella tabella request_log per la richiesta specificata."""
+        try:
+            updated = self.request_log_dao.update_field(id_request, "response", response_data)
+            print(f"✅ Aggiornata response per request_log id={id_request} ({updated} record modificato)")
+            return updated
+        except Error as e:
+            print(f"❌ Errore DB durante update_request_response: {e}")
+            return None
+
+    def log_outgoing_api(self, request_text, response_text, signal_id=None):
+        if isinstance(request_text, (dict, list)):
+            request_text = json.dumps(request_text, ensure_ascii=False)
+
+        if isinstance(response_text, (dict, list)):
+            response_text = json.dumps(response_text, ensure_ascii=False)
+
+        try:
+            inserted_id = self.api_request_dao.insert(request_text, response_text, signal_id)
+            print(f"✅ Inserita richiesta API (id={inserted_id}, signal_id={signal_id})")
+            return inserted_id
+        except Error as e:
+            print(f"❌ Errore DB durante l’inserimento in api_requests: {e}")
+            return None

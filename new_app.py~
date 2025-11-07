@@ -7,7 +7,6 @@ from utils import parse_signal_string
 from new_bitget_client import BitgetClient
 from db_module import DatabaseService
 from Order import Order, process_order_request
-import os
 
 app = Flask(__name__)
 client = BitgetClient()
@@ -106,6 +105,4 @@ def place_order(order: Order, signal_id: str):
 
 
 if __name__ == "__main__":
-
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    app.run(debug=True)

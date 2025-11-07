@@ -1,0 +1,23 @@
+# Ambiente virtuale
+venv/
+.env/
+
+# File temporanei di sistema
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.DS_Store
+
+# File di configurazione locali
+*.env
+*.log
+
+# Cartelle IDE
+.idea/
+.vscode/
+
+# File di output
+*.csv
+*.xlsx
+*.db
