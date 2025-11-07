@@ -1,23 +1,38 @@
-# Ambiente virtuale
-venv/
-.env/
+# =============================
+# Ignora file e cartelle Python
+# =============================
 
-# File temporanei di sistema
+# Cache di Python
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
-*.DS_Store
+*.py[cod]
+*$py.class
 
-# File di configurazione locali
-*.env
+# Ambienti virtuali
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# File di log e temporanei
 *.log
+*.tmp
+*.bak
+*.swp
+*.swo
+*~
+.DS_Store
 
 # Cartelle IDE
 .idea/
 .vscode/
 
-# File di output
+# File di configurazione locali
+*.env
+.env/
+
+# Output e database
 *.csv
-*.xlsx
 *.db
+*.sqlite3
