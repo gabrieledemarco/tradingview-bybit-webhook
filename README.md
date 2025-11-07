@@ -44,6 +44,11 @@ pip install -r requirements.txt
 Questo progetto consente di ricevere alert da TradingView via webhook e inviare ordini all’exchange Bybit mediante API.
 Lo scopo è automatizzare strategie che generano segnali su TradingView e li traducono in operazioni reali su Bybit.
 
+---# TradingView → Bybit Webhook Bot
+
+Questo progetto consente di ricevere alert da TradingView via webhook e inviare ordini all’exchange Bybit mediante API.
+Lo scopo è automatizzare strategie che generano segnali su TradingView e li traducono in operazioni reali su Bybit.
+
 ---
 
 ## Prerequisiti
