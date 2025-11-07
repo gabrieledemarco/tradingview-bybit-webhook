@@ -74,7 +74,7 @@ Configura il file `.env` o `config.py` con le tue credenziali Bybit:
 API_KEY = "la_tua_api_key"
 API_SECRET = "la_tua_api_secret"
 IS_TESTNET = True
-ENDPOINT = "https://api-testnet.bybit.com"
+ENDPOINT = "https://api-bitget.com"
 ```
 
 Avvia il bot:
