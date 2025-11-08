@@ -191,3 +191,22 @@ class BitgetClient:
             "size": quantity
         }
         return self._post(path, payload, signal_id)
+
+    
+    def close_all_positions(self, symbol):
+        # 1. Recupera tutte le posizioni aperte
+        path = "/api/v2/mix/order/close-positions"
+        payload = {
+            "symbol": symbol,
+            "productType": PRODUCT_TYPE
+        }
+        response = self._post(path, payload)
+
+        if not response or "data" not in response:
+            print("❌ Nessuna posizione trovata o errore nella richiesta")
+            return
+
+        positions = response["data"]
+        if not positions:
+            print("✅ Nessuna posizione aperta da chiudere")
+            return
