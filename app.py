@@ -30,7 +30,7 @@ def handle_order():
     if order.order_type == "OPEN":
         result_json = place_order(order, signal_id)
     elif order.order_type == "CLOSE":
-        #client.close_all_positions(symbol=order.ticker.replace(".P", ""))
+        client.close_all_positions(symbol=order.ticker.replace(".P", ""))
         result_json = {"status": "closed", "signal_id": signal_id}
     else:
         return jsonify({"error": "Tipo di ordine non riconosciuto"}), 400
