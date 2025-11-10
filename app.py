@@ -22,6 +22,7 @@ def handle_order():
 
   
     print("***************************")
+    print("richiesta ricevuta: ", request)
     try:
         data = request.get_json(force=False, silent=False)
         print("richiesta ricevuta:", json.dumps(data, indent=2))
