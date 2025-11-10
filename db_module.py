@@ -25,7 +25,7 @@ class Database:
         # 🔹 Creazione del pool di connessioni
         self.pool = pooling.MySQLConnectionPool(
             pool_name="mypool",
-            pool_size=3,
+            pool_size=10,
             **self.config
         )
 
