@@ -20,6 +20,15 @@ def handle_order():
     order = process_order_request(request)
     signal_id = str(uuid.uuid4())
 
+  
+    print("***************************")
+    try:
+        data = request.get_json(force=False, silent=False)
+        print("richiesta ricevuta:", json.dumps(data, indent=2))
+    except Exception as e:
+        print(f"❌ Errore nel parsing JSON: {e}")
+        print("Corpo grezzo:", request.data.decode('utf-8', errors='ignore'))
+
     # ✅ Salva richiesta in ingresso nel DB
     request_id = db.log_incoming_request(
         signal_id=signal_id,
