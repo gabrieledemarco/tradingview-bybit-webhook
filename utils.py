@@ -75,10 +75,21 @@ def parse_order_text(text):
 
 
 def parse_signal_string(text: str) -> dict:
+    """
+    Parsifica un messaggio di alert Pine Script.
+    Supporta:
+    - TP singolo o multipli
+    - SL come "SL" o "Stop Loss"
+    - Entry
+    - Size
+    - Percentuali TP opzionali
+    """
     result = {}
 
+    text_upper = text.upper()
+
     # Tipo di segnale (OPEN/CLOSE) e direzione (LONG/SHORT)
-    signal_match = re.search(r"(OPEN|CLOSE)\s+(LONG|SHORT)", text.upper())
+    signal_match = re.search(r"(OPEN|CLOSE)\s+(LONG|SHORT)", text_upper)
     if signal_match:
         result["signal_type"] = signal_match.group(1)
         result["direction"] = signal_match.group(2)
@@ -88,26 +99,32 @@ def parse_signal_string(text: str) -> dict:
     if entry_match:
         result["entry"] = float(entry_match.group(1))
 
-    # Stop Loss
-    sl_match = re.search(r"Stop Loss:\s*([\d.]+)", text)
+    # Stop Loss (SL o Stop Loss)
+    sl_match = re.search(r"(Stop Loss|SL):\s*([\d.]+)", text, re.IGNORECASE)
     if sl_match:
-        result["stop_loss"] = float(sl_match.group(1))
+        result["stop_loss"] = float(sl_match.group(2))
 
-    # Take Profits
-    for i in range(1, 4):
-        tp_match = re.search(rf"TP{i}:\s*([\d.]+)", text)
-        if tp_match:
-            result[f"tp{i}"] = float(tp_match.group(1))
+    # Take Profits multipli (TP1, TP2, TP3)
+    tp_multi_matches = re.findall(r"TP(\d):\s*([\d.]+)", text, re.IGNORECASE)
+    if tp_multi_matches:
+        # TP multipli
+        for tp_idx, tp_val in tp_multi_matches:
+            result[f"tp{tp_idx}"] = float(tp_val)
+        # Percentuali TP (qty_distribution)
+        qty_matches = re.findall(r"TP(\d):\s*(\d+)%", text, re.IGNORECASE)
+        if qty_matches:
+            result["qty_distribution"] = {f"TP{tp}": int(percent) for tp, percent in qty_matches}
+    else:
+        # Se non ci sono TP1/2/3, cerchiamo TP singolo
+        tp_single_match = re.search(r"TP:\s*([\d.]+)", text, re.IGNORECASE)
+        if tp_single_match:
+            result["tp"] = float(tp_single_match.group(1))
 
     # Size
-    size_match = re.search(r"Size:\s*([\d.]+)", text)
+    size_match = re.search(r"Size:\s*([\d.]+)", text, re.IGNORECASE)
     if size_match:
         result["size"] = float(size_match.group(1))
 
-    # Percentuali TP
-    qty_matches = re.findall(r"TP(\d):\s*(\d+)%", text)
-    if qty_matches:
-        result["qty_distribution"] = {f"TP{tp}": int(percent) for tp, percent in qty_matches}
-
-    print("Parsed Restults:", json.dumps(result, indent=2))
+    # Debug
+    print("Parsed Results:", json.dumps(result, indent=2))
     return result
