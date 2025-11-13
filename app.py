@@ -68,7 +68,10 @@ def ping():
     }), 200
 
 def place_order(order: Order, signal_id: str):
-    """Esegue tutte le chiamate Bitget e le logga con lo stesso signal_id."""
+    """
+    Esegue tutte le chiamate Bitget e le logga con lo stesso signal_id.
+    Supporta TP multipli con qty_distribution oppure TP singolo.
+    """
     symbol = order.ticker.replace(".P", "")
     margin_coin = "USDT"
     side = order.action
@@ -78,13 +81,18 @@ def place_order(order: Order, signal_id: str):
     msg = parse_signal_string(order.message)
     qty = abs(order.size)
 
-    # Se ci sono TP multipli con qty_distribution
+    take_profit_orders = {}
+    stop_loss_order = None
+
+    # -----------------------------
+    # TP multipli con qty_distribution
+    # -----------------------------
     if "qty_distribution" in msg and all(k in msg for k in ["tp1", "tp2", "tp3", "stop_loss"]):
         tp1_price, tp2_price, tp3_price, sl_price = msg["tp1"], msg["tp2"], msg["tp3"], msg["stop_loss"]
         tp1_qty = max(1, round(msg["qty_distribution"]["TP1"] / 100 * qty))
         tp2_qty = max(1, round(msg["qty_distribution"]["TP2"] / 100 * qty))
         tp3_qty = max(1, round(msg["qty_distribution"]["TP3"] / 100 * qty))
-        
+
         take_profit_orders = {
             "tp1": client.place_tp_sl(symbol, margin_coin, str(tp1_qty), side, tp1_price, "profit_plan", signal_id),
             "tp2": client.place_tp_sl(symbol, margin_coin, str(tp2_qty), side, tp2_price, "profit_plan", signal_id),
@@ -92,10 +100,13 @@ def place_order(order: Order, signal_id: str):
         }
         stop_loss_order = client.place_tp_sl(symbol, margin_coin, str(qty), side, sl_price, "loss_plan", signal_id)
 
-    # Se c'è solo un TP e SL
-    elif "TP" in msg and "SL" in msg:
-        tp_price = msg["TP"]
-        sl_price = msg["SL"]
+    # -----------------------------
+    # TP singolo
+    # -----------------------------
+    elif "tp" in msg and "stop_loss" in msg:
+        tp_price = msg["tp"]
+        sl_price = msg["stop_loss"]
+
         take_profit_orders = {
             "tp": client.place_tp_sl(symbol, margin_coin, str(qty), side, tp_price, "profit_plan", signal_id)
         }
@@ -105,7 +116,9 @@ def place_order(order: Order, signal_id: str):
         # Messaggio non valido
         raise ValueError("Il messaggio del segnale non contiene TP/SL validi")
 
+    # -----------------------------
     # Set leva e piazza ordine principale
+    # -----------------------------
     leverage_result = client.set_leverage(symbol, margin_coin, leverage, side, signal_id)
     order_result = client.place_order(symbol, margin_coin, str(qty), side, trade_side, signal_id)
 
@@ -117,6 +130,7 @@ def place_order(order: Order, signal_id: str):
     }
 
     return results
+
 
 
 
